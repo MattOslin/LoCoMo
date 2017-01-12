@@ -7,7 +7,7 @@ class Module(object):
 		self.ip = ip
 		self.port = 2390
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.sock.settimeout(10) # in seconds
+		self.sock.settimeout(1) # in seconds
 
 	def send_BatteryRequest(self):
 		msg = struct.pack("<B", 101)

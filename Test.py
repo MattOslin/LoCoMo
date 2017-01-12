@@ -1,18 +1,37 @@
+import pygame
 import Module
 import time
+import sys
+
+from pygame.locals import *
+
+pygame.init()
+
+DISPLAYSURF = pygame.display.set_mode((300,300))
+pygame.display.set_caption('LoCoMo Debugger')
 
 mod = Module.Module("192.168.10.14")
-print("Check the battery condition")
-mod.send_BatteryRequest()
-time.sleep(1)	
 
-print("Setting Power to 500")
-mod.send_PowTo(500)
-time.sleep(4)
+while True:
 
-print("Setting Power to -500")
-mod.send_PowTo(-500)
-time.sleep(4)
+	#get all the user events
+	for event in pygame.event.get():
+        #if the user wants to quit
+		if event.type == QUIT:
+			print("Stopping")
+			mod.send_Stop()
+			pygame.quit()
+			sys.exit()
+		elif event.type == KEYUP:
+			mod.send_Stop()
+		elif event.type == KEYDOWN:
+			if event.key == K_LEFT:
+				mod.send_PowTo(500)
+			elif event.key == K_RIGHT:
+				mod.send_PowTo(-500)
+			elif event.key == K_SPACE:
+				mod.send_PosRequest()
 
-print("Stopping")
-mod.send_Stop()
+	pygame.display.update()
+
+
