@@ -43,7 +43,7 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 
 if __name__ == '__main__':
-	mod = Module("192.168.10.14")
+	mod = Module("192.168.10.12")
 	
 	mod.send_Stop
 
