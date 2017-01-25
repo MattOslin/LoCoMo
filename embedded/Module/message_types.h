@@ -27,21 +27,14 @@ typedef struct __attribute__ ((__packed__)) {
 const uint8_t MsgPosType = 124;
 typedef struct __attribute__ ((__packed__)) {
   uint8_t type;
-  int pos;
+  float pos;
 }MsgPos;
 
 const uint8_t MsgPowToType = 112;
 typedef struct __attribute__ ((__packed__)) {
   uint8_t type;
-  int v;
+  float v;
 }MsgPowTo;
-
-const uint8_t MsgTrajType = 107;
-typedef struct __attribute__ ((__packed__)) {
-  uint8_t type;
-  int v;
-  int dur;
-}MsgTraj;
 
 //
 //const uint8_t MsgStartSwimType = 110;
