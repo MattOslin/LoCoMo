@@ -7,14 +7,13 @@ class Module(object):
 		self.ip = ip
 		self.port = 2390
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.sock.settimeout(1) # in seconds
+		self.sock.settimeout(2) # in seconds
 
 	def send_BatteryRequest(self):
 		msg = struct.pack("<B", 101)
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
-			print(data)
 			(msg_id, batt_level) = struct.unpack("<Bf",data[0])
 			print("Battery Voltage: {:4.2f}".format(batt_level))
 		except socket.timeout:
@@ -25,8 +24,8 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
-			(msg_id, pos) = struct.unpack("<Bf",data[0])
-			print("Position: {:7.2f}".format(pos))
+			(msg_id, pos) = struct.unpack("<Bi",data[0])
+			print("Position: {}".format(pos))
 		except socket.timeout:
 			print("Not responding")
 
@@ -45,8 +44,6 @@ if __name__ == '__main__':
 
 	print("Check the battery condition")
 	mod.send_BatteryRequest()
-	time.sleep(1)	
 
 	print("Checking encoder")
 	mod.send_PosRequest()
-	time.sleep(4)
