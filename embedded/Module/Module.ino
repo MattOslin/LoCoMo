@@ -51,11 +51,11 @@ void loop() {
   int packetSize = Udp.parsePacket();
   handlePacket(packetSize);
 
-  if(millis()>=t+timeStep){
-    int pos = estimatePosition();
-    int v = controller(pos);
-    updateMotors(v);
-  }
+//  if(millis()>=t+timeStep){
+//    int pos = estimatePosition();
+//    int v = controller(pos);
+//    updateMotors(v);
+//  }
 }
 
 int controller(int pos){
