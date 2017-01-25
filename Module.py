@@ -14,7 +14,6 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
-			print(data)
 			(msg_id, batt_level) = struct.unpack("<Bf",data[0])
 			print("Battery Voltage: {:4.2f}".format(batt_level))
 		except socket.timeout:
@@ -49,8 +48,6 @@ if __name__ == '__main__':
 
 	print("Check the battery condition")
 	mod.send_BatteryRequest()
-	time.sleep(1)	
 
 	print("Checking encoder")
 	mod.send_PosRequest()
-	time.sleep(4)

@@ -51,34 +51,33 @@ void loop() {
   int packetSize = Udp.parsePacket();
   handlePacket(packetSize);
 
-//  if(millis()>=t+timeStep){
-//    int pos = estimatePosition();
-//    int v = controller(pos);
-//    updateMotors(v);
-//  }
+  if(millis()>=t+timeStep){
+    t = millis();
+    int pos = estimatePosition();
+    int v = controller(pos);
+    updateMotors(v);
+  }
 }
 
 int controller(int pos){
   int v = 0;
   switch(state){
-    case MOVE:
-      {
-        v = velo;
-      }
+    case WAIT:
       break;
     case TRAJ:
-      {
-        if(millis()<trajEnd){
-          v = velo;
-        }else{
-          v = 0;
-        }
-      }
-    case WAIT:
-      {
-        return 0;
+    {
+      if(millis()<trajEnd){
+        v = velo;
+      }else{
+        v = 0;
       }
       break;
+    }
+    case MOVE:
+    {
+      v = velo;
+      break;
+    }   
   }
   return v;
 }
@@ -91,15 +90,15 @@ void updateMotors(int v){
   if(v=0){
     digitalWrite(STBY, LOW);
   }else{
-      if(v>0){
-        digitalWrite(IN1, HIGH);
-        digitalWrite(IN2, LOW);
-      }else{
-        digitalWrite(IN2, HIGH);
-        digitalWrite(IN1, LOW);
-      }
-      analogWrite(PWM, abs(v));
-      digitalWrite(STBY, HIGH);
+    if(v>0){
+      digitalWrite(IN1, HIGH);
+      digitalWrite(IN2, LOW);
+    }else{
+      digitalWrite(IN2, HIGH);
+      digitalWrite(IN1, LOW);
+    }
+    analogWrite(PWM, abs(v));
+    digitalWrite(STBY, HIGH);
   }
 }
 
