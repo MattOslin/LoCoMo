@@ -25,13 +25,17 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
-			(msg_id, pos) = struct.unpack("<Bf",data[0])
-			print("Position: {:7.2f}".format(pos))
+			(msg_id, pos) = struct.unpack("<Bi",data[0])
+			print("Position: {}".format(pos))
 		except socket.timeout:
 			print("Not responding")
 
 	def send_PowTo(self, velo):
-		msg = struct.pack("<Bf", 112, velo)
+		msg = struct.pack("<Bi", 112, velo)
+		self.sock.sendto(msg, (self.ip, self.port))
+
+	def send_Traj(self, velo, dur):
+		msg = struct.pack("<Bii", 107, velo, dur)
 		self.sock.sendto(msg, (self.ip, self.port))
 
 	def send_Stop(self):
