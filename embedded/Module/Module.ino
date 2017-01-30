@@ -69,14 +69,14 @@ void loop() {
   }
 }
 
-int controller(float pos){
+int controller(float pos, float vel){
   int v = 0;
   switch(state){
     case WAIT:
       break;
     case TRAJ:
     {
-      timeElapsed = (float)(millis()-trajStart)/1000.0f;
+      float timeElapsed = (float)(millis()-trajStart)/1000.0f;
       float goalPos = getTrajPos(timeElapsed);
       float goalVel = getTrajVel(timeElapsed);
       v = pid(pos, vel, goalPos, goalVel);
@@ -92,14 +92,20 @@ int controller(float pos){
 }
 
 int pid(float pos, float vel, float goalPos, float goalVel){
-  int output = 0;
+  float posErr(goalPos - pos);
+  float velErr(goalVel - vel);
+  float posErrTemp = 2*PI - abs(posErr);
+  if (abs(posErr)>=PI) {
+    posErr = posErrTemp * ((posErr<0)-(posErr>0));
+  }
+  return KP*posErr + KD*velErr;
 }
 
 float getTrajPos(float t){
   if(t>trajDur){
     t = trajDur;
   }
-  desPos = f + e*t + d*pow(t,2) + c*pow(t,3) + b*pow(t,4) + a*pow(t,5);
+  float desPos = f + e*t + d*pow(t,2) + c*pow(t,3) + b*pow(t,4) + a*pow(t,5);
   if(desPos > PI){
     desPos = desPos - 2*PI;
   }else if(desPos < -PI){
@@ -112,7 +118,7 @@ float getTrajVel(float t){
   if(t>trajDur){
     t = trajDur;
   }
-  desVel = e + 2.0f*d*t + 3.0f*c*pow(t,2) + 4.0f*b*pow(t,3) + 5.0f*a*pow(t,4);
+  return e + 2.0f*d*t + 3.0f*c*pow(t,2) + 4.0f*b*pow(t,3) + 5.0f*a*pow(t,4);
 }
 
 float estimateVelocity(float pos){
@@ -122,7 +128,7 @@ float estimateVelocity(float pos){
   long t = millis();
   if (oldPos > pos + PI){
     oldPos = oldPos - 2*PI;
-  }else if(oldPos < pos i PI){
+  }else if(oldPos < pos - PI){
     oldPos = oldPos + 2*PI;
   }
   velocity = (pos - oldPos) * 1000 / (t-oldTime);
@@ -139,7 +145,7 @@ void updateMotors(int v){
   if(!v){
     digitalWrite(STBY, LOW);
   }else{
-    v = contrain(v,0,1023);
+    v = constrain(v,-1023,1023);
     if(v>0){
       digitalWrite(IN1, HIGH);
       digitalWrite(IN2, LOW);
@@ -194,20 +200,20 @@ void handlePacket(int packetSize)
         break;
       }
 
-      case MsgVelRequestType:
-      {
-        MsgVelRequest *msg = (MsgVelRequest*)(packetBuffer);
-        Serial.print("Received velocity check command: ");
-        Serial.println(msg->type);
-        Serial.print("Sending reply: ");
-        float vel = estimateVelocity(estimatePosition());
-        Serial.println(vel);
-        MsgVel reply = {MsgVelType, vel};
-        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write((const char*) (&reply), sizeof(reply));
-        Udp.endPacket();
-        break;
-      }
+//      case MsgVelRequestType:
+//      {
+//        MsgVelRequest *msg = (MsgVelRequest*)(packetBuffer);
+//        Serial.print("Received velocity check command: ");
+//        Serial.println(msg->type);
+//        Serial.print("Sending reply: ");
+//        float vel = estimateVelocity(estimatePosition());
+//        Serial.println(vel);
+//        MsgVel reply = {MsgVelType, vel};
+//        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+//        Udp.write((const char*) (&reply), sizeof(reply));
+//        Udp.endPacket();
+//        break;
+//      }
       
       case MsgPowToType:
       {

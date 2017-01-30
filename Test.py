@@ -30,8 +30,8 @@ while True:
 			elif event.key == K_RIGHT:
 				mod.send_PowTo(-1000)
 			elif event.key == K_SPACE:
-				print("Checking position")
-				mod.send_PosRequest()
+				print("Checking velocity")
+				mod.send_VelRequest()
 
 	pygame.display.update()
 

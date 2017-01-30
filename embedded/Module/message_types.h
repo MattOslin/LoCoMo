@@ -30,27 +30,16 @@ typedef struct __attribute__ ((__packed__)) {
   float pos;
 }MsgPos;
 
-const uint8_t MsgPosRequestType = 122;
-typedef struct __attribute__ ((__packed__)) {
-  uint8_t type;
-}MsgPosRequest;
-
-const uint8_t MsgPosType = 124;
-typedef struct __attribute__ ((__packed__)) {
-  uint8_t type;
-  float pos;
-}MsgPos;
-
-const uint8_t MsgVelRequestType = 90;
-typedef struct __attribute__ ((__packed__)) {
-  uint8_t type;
-}MsgVelRequest;
-
-const uint8_t MsgVelType = 92;
-typedef struct __attribute__ ((__packed__)) {
-  uint8_t type;
-  float vel;
-}MsgVel;
+//const uint8_t MsgVelRequestType = 90;
+//typedef struct __attribute__ ((__packed__)) {
+//  uint8_t type;
+//}MsgVelRequest;
+//
+//const uint8_t MsgVelType = 92;
+//typedef struct __attribute__ ((__packed__)) {
+//  uint8_t type;
+//  float vel;
+//}MsgVel;
 
 const uint8_t MsgPowToType = 112;
 typedef struct __attribute__ ((__packed__)) {

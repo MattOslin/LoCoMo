@@ -24,8 +24,18 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
-			(msg_id, pos) = struct.unpack("<Bi",data[0])
-			print("Position: {}".format(pos))
+			(msg_id, pos) = struct.unpack("<Bf",data[0])
+			print("Position: {:4.2f}".format(pos))
+		except socket.timeout:
+			print("Not responding")
+
+	def send_VelRequest(self):
+		msg = struct.pack("<B", 90)
+		self.sock.sendto(msg, (self.ip, self.port))
+		try:
+			data = self.sock.recvfrom(256)
+			(msg_id, vel) = struct.unpack("<Bf",data[0])
+			print("Velocity: {:4.2f}".format(vel))
 		except socket.timeout:
 			print("Not responding")
 
@@ -33,8 +43,8 @@ class Module(object):
 		msg = struct.pack("<Bi", 112, velo)
 		self.sock.sendto(msg, (self.ip, self.port))
 
-	def send_Traj(self, velo, dur):
-		msg = struct.pack("<Bii", 107, velo, dur)
+	def send_Traj(self, a, b, c, d, e, f, dur):
+		msg = struct.pack("<Bfffffff", 107, a, b, c, d, e, f, dur)
 		self.sock.sendto(msg, (self.ip, self.port))
 
 	def send_Stop(self):
@@ -51,3 +61,7 @@ if __name__ == '__main__':
 
 	print("Checking encoder")
 	mod.send_PosRequest()
+
+	print("Turning")
+	mod.send_Traj(0,0,0,0,1,0,5)
+	time.sleep(6)
