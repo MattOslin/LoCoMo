@@ -26,9 +26,9 @@ while True:
 			mod.send_Stop()
 		elif event.type == KEYDOWN:
 			if event.key == K_LEFT:
-				mod.send_PowTo(500)
+				mod.send_PowTo(1000)
 			elif event.key == K_RIGHT:
-				mod.send_PowTo(-500)
+				mod.send_PowTo(-1000)
 			elif event.key == K_SPACE:
 				print("Checking position")
 				mod.send_PosRequest()

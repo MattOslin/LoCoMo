@@ -1,8 +1,7 @@
 /*
- * Simple control of the boat over UDP
- * Modified from several examples and the smores messaging code
+ * LoCoMo control over UDP
  * 
- * Alexander Spinos
+ * Matt Oslin
  */
  
 #include <SPI.h>
@@ -11,12 +10,15 @@
 #include "message_types.h"
 #include "WiFiCred.h"
 
-#define MAX_SENSOR_VALUE 500
-#define MIN_SENSOR_VALUE 100
+#define MAX_SENSOR_VALUE 675
+#define MIN_SENSOR_VALUE 110
+
+#define KP 1
+#define KD 0
 
 char ssid[] = WIFI_SSID; // your network SSID (name)
 char pass[] = WIFI_PASS; // your network password
-IPAddress ip(192, 168, 10, 15); 
+//IPAddress ip(192, 168, 10, 15);
 const unsigned int localPort = 2390;  // local port to listen on
 
 enum StateType {WAIT, MOVE, TRAJ};
@@ -36,7 +38,14 @@ char packetBuffer[255]; // buffer to hold incoming packet
 enum StateType state = WAIT;
 unsigned long t = millis();
 int velo = 0;
-unsigned long trajEnd;
+unsigned long trajStart;
+float trajDur;
+float a;
+float b;
+float c;
+float d;
+float e;
+float f;
 
 void setup() {
   initHardware();
@@ -53,24 +62,24 @@ void loop() {
 
   if(millis()>=t+timeStep){
     t = millis();
-    int pos = estimatePosition();
-    int v = controller(pos);
+    float pos = estimatePosition();
+    float vel = estimateVelocity(pos);
+    int v = controller(pos, vel);
     updateMotors(v);
   }
 }
 
-int controller(int pos){
+int controller(float pos){
   int v = 0;
   switch(state){
     case WAIT:
       break;
     case TRAJ:
     {
-      if(millis()<trajEnd){
-        v = velo;
-      }else{
-        v = 0;
-      }
+      timeElapsed = (float)(millis()-trajStart)/1000.0f;
+      float goalPos = getTrajPos(timeElapsed);
+      float goalVel = getTrajVel(timeElapsed);
+      v = pid(pos, vel, goalPos, goalVel);
       break;
     }
     case MOVE:
@@ -82,14 +91,55 @@ int controller(int pos){
   return v;
 }
 
-int estimatePosition(){
-  return map(analogRead(ANALOG), MIN_SENSOR_VALUE, MAX_SENSOR_VALUE, 0, 1023);
+int pid(float pos, float vel, float goalPos, float goalVel){
+  int output = 0;
+}
+
+float getTrajPos(float t){
+  if(t>trajDur){
+    t = trajDur;
+  }
+  desPos = f + e*t + d*pow(t,2) + c*pow(t,3) + b*pow(t,4) + a*pow(t,5);
+  if(desPos > PI){
+    desPos = desPos - 2*PI;
+  }else if(desPos < -PI){
+    desPos = desPos + 2*PI;
+  }
+  return desPos;
+}
+
+float getTrajVel(float t){
+  if(t>trajDur){
+    t = trajDur;
+  }
+  desVel = e + 2.0f*d*t + 3.0f*c*pow(t,2) + 4.0f*b*pow(t,3) + 5.0f*a*pow(t,4);
+}
+
+float estimateVelocity(float pos){
+  static float oldPos = 0;
+  static long oldTime = millis();
+  float velocity = 0;
+  long t = millis();
+  if (oldPos > pos + PI){
+    oldPos = oldPos - 2*PI;
+  }else if(oldPos < pos i PI){
+    oldPos = oldPos + 2*PI;
+  }
+  velocity = (pos - oldPos) * 1000 / (t-oldTime);
+  oldPos = pos;
+  oldTime = t;
+  return velocity;
+}
+
+float estimatePosition(){
+  return map(analogRead(ANALOG), MIN_SENSOR_VALUE, MAX_SENSOR_VALUE, -PI, PI);
 }
 
 void updateMotors(int v){
-  if(v=0){
+  if(!v){
     digitalWrite(STBY, LOW);
   }else{
+    v = contrain(v,0,1023);
     if(v>0){
       digitalWrite(IN1, HIGH);
       digitalWrite(IN2, LOW);
@@ -135,7 +185,7 @@ void handlePacket(int packetSize)
         Serial.println(msg->type);
 
         Serial.print("Sending reply: ");
-        int pos = estimatePosition();
+        float pos = estimatePosition();
         Serial.println(pos);
         MsgPos reply = {MsgPosType, pos};
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
@@ -143,6 +193,22 @@ void handlePacket(int packetSize)
         Udp.endPacket();
         break;
       }
+
+      case MsgVelRequestType:
+      {
+        MsgVelRequest *msg = (MsgVelRequest*)(packetBuffer);
+        Serial.print("Received velocity check command: ");
+        Serial.println(msg->type);
+        Serial.print("Sending reply: ");
+        float vel = estimateVelocity(estimatePosition());
+        Serial.println(vel);
+        MsgVel reply = {MsgVelType, vel};
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write((const char*) (&reply), sizeof(reply));
+        Udp.endPacket();
+        break;
+      }
+      
       case MsgPowToType:
       {
         MsgPowTo *msg = (MsgPowTo*)(packetBuffer);
@@ -160,12 +226,28 @@ void handlePacket(int packetSize)
         MsgTraj *msg = (MsgTraj*)(packetBuffer);
         Serial.print("Received trajectory: ");
         Serial.println(msg->type);
-        Serial.print("Speed: ");
-        Serial.println(msg->v);
+        a = msg->a;
+        b = msg->b;
+        c = msg->c;
+        d = msg->d;
+        e = msg->e;
+        f = msg->f;
+        Serial.print("Function: x=");
+        Serial.print(a);
+        Serial.print("x^5+");
+        Serial.print(b);
+        Serial.print("x^4+");
+        Serial.print(c);
+        Serial.print("x^3+");
+        Serial.print(d);
+        Serial.print("x^2+");
+        Serial.print(e);
+        Serial.print("x+");
+        Serial.println(f);
         Serial.print("Duration: ");
-        Serial.println(msg->dur);
-        velo = msg->v;
-        trajEnd = msg->dur+millis();
+        trajDur = msg->dur;
+        Serial.println(trajDur);
+        trajStart = millis();
         state = TRAJ;
         break;
       }
