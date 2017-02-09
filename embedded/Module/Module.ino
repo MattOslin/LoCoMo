@@ -13,8 +13,9 @@
 #define MAX_SENSOR_VALUE 675
 #define MIN_SENSOR_VALUE 110
 
-#define KP 1
+#define KP 500
 #define KD 0
+#define BETA 0.9
 
 char ssid[] = WIFI_SSID; // your network SSID (name)
 char pass[] = WIFI_PASS; // your network password
@@ -38,14 +39,15 @@ char packetBuffer[255]; // buffer to hold incoming packet
 enum StateType state = WAIT;
 unsigned long t = millis();
 int velo = 0;
-unsigned long trajStart;
-float trajDur;
+unsigned long start;
+float timeout;
 float a;
 float b;
 float c;
 float d;
 float e;
 float f;
+bool brake = true;
 
 void setup() {
   initHardware();
@@ -76,15 +78,24 @@ int controller(float pos, float vel){
       break;
     case TRAJ:
     {
-      float timeElapsed = (float)(millis()-trajStart)/1000.0f;
-      float goalPos = getTrajPos(timeElapsed);
-      float goalVel = getTrajVel(timeElapsed);
-      v = pid(pos, vel, goalPos, goalVel);
+      float timeElapsed = (float)(millis()-start)/1000.0f;
+      if(!brake && timeElapsed > timeout){
+        v=0;
+      }else{
+        float goalPos = getTrajPos(timeElapsed);
+        float goalVel = getTrajVel(timeElapsed);
+        v = pid(pos, vel, goalPos, goalVel);
+      }
       break;
     }
     case MOVE:
     {
-      v = velo;
+      float timeElapsed = (float)(millis()-start)/1000.0f;
+      if(!brake && timeElapsed > timeout){
+        v=0;
+      }else{
+        v = velo;
+      }
       break;
     }   
   }
@@ -102,8 +113,8 @@ int pid(float pos, float vel, float goalPos, float goalVel){
 }
 
 float getTrajPos(float t){
-  if(t>trajDur){
-    t = trajDur;
+  if(t>timeout){
+    t = timeout;
   }
   float desPos = f + e*t + d*pow(t,2) + c*pow(t,3) + b*pow(t,4) + a*pow(t,5);
   if(desPos > PI){
@@ -115,8 +126,8 @@ float getTrajPos(float t){
 }
 
 float getTrajVel(float t){
-  if(t>trajDur){
-    t = trajDur;
+  if(t>timeout){
+    t = timeout;
   }
   return e + 2.0f*d*t + 3.0f*c*pow(t,2) + 4.0f*b*pow(t,3) + 5.0f*a*pow(t,4);
 }
@@ -138,7 +149,12 @@ float estimateVelocity(float pos){
 }
 
 float estimatePosition(){
-  return map(analogRead(ANALOG), MIN_SENSOR_VALUE, MAX_SENSOR_VALUE, -PI, PI);
+  static float oldPos = 0;
+  float current = 2*PI/(MAX_SENSOR_VALUE-MIN_SENSOR_VALUE)*analogRead(ANALOG) 
+    - PI - 2*PI*MIN_SENSOR_VALUE/(MAX_SENSOR_VALUE-MIN_SENSOR_VALUE);
+  float pos = BETA*oldPos + (1-BETA)*current;
+  oldPos = current;
+  return pos;
 }
 
 void updateMotors(int v){
@@ -146,7 +162,7 @@ void updateMotors(int v){
     digitalWrite(STBY, LOW);
   }else{
     v = constrain(v,-1023,1023);
-    if(v>0){
+    if(v<0){
       digitalWrite(IN1, HIGH);
       digitalWrite(IN2, LOW);
     }else{
@@ -214,6 +230,18 @@ void handlePacket(int packetSize)
 //        Udp.endPacket();
 //        break;
 //      }
+
+      
+      case MsgSetBrakeType:
+      {
+        MsgSetBrake *msg = (MsgSetBrake*)(packetBuffer);
+        Serial.print("Received set brake command: ");
+        Serial.println(msg->type);
+        Serial.print("Brake: ");
+        brake = msg->brake;
+        Serial.println(brake);
+        break;
+      }
       
       case MsgPowToType:
       {
@@ -222,6 +250,10 @@ void handlePacket(int packetSize)
         Serial.println(msg->type);
         Serial.print("Speed: ");
         Serial.println(msg->v);
+        Serial.print("Timeout: ");
+        timeout = msg->timeout;
+        Serial.println(timeout);
+        start = millis();
         velo = msg->v;
         state = MOVE;
         break;
@@ -251,13 +283,34 @@ void handlePacket(int packetSize)
         Serial.print("x+");
         Serial.println(f);
         Serial.print("Duration: ");
-        trajDur = msg->dur;
-        Serial.println(trajDur);
-        trajStart = millis();
+        timeout = msg->dur;
+        Serial.println(timeout);
+        start = millis();
         state = TRAJ;
         break;
       }
 
+      case MsgPosToType:
+      {
+        MsgPosTo *msg = (MsgPosTo*)(packetBuffer);
+        Serial.print("Received position: ");
+        Serial.println(msg->type);
+        a = 0;
+        b = 0;
+        c = 0;
+        d = 0;
+        e = 0;
+        f = msg->pos;
+        Serial.print("Position: ");
+        Serial.println(f);
+        Serial.print("Timeout: ");
+        timeout = msg->timeout;
+        Serial.println(timeout);
+        start = millis();
+        state = TRAJ;
+        break;
+      }
+      
       case MsgStopType:
       {
         MsgStop *msg = (MsgStop*)(packetBuffer);

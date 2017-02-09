@@ -1,6 +1,7 @@
 import socket
 import time
 import struct
+import matplotlib.pyplot as plt
 
 class Module(object):
 	def __init__(self, ip):
@@ -19,15 +20,18 @@ class Module(object):
 		except socket.timeout:
 			print("Not responding")
 
-	def send_PosRequest(self):
+	def send_PosRequest(self, printing=False):
 		msg = struct.pack("<B", 122)
 		self.sock.sendto(msg, (self.ip, self.port))
 		try:
 			data = self.sock.recvfrom(256)
 			(msg_id, pos) = struct.unpack("<Bf",data[0])
-			print("Position: {:4.2f}".format(pos))
+			if printing:
+				print("Position: {:4.2f}".format(pos))
+			return pos
 		except socket.timeout:
 			print("Not responding")
+			return None
 
 	def send_VelRequest(self):
 		msg = struct.pack("<B", 90)
@@ -39,8 +43,16 @@ class Module(object):
 		except socket.timeout:
 			print("Not responding")
 
-	def send_PowTo(self, velo):
-		msg = struct.pack("<Bi", 112, velo)
+	def send_PowTo(self, velo, timeout):
+		msg = struct.pack("<Bif", 112, velo, timeout)
+		self.sock.sendto(msg, (self.ip, self.port))
+
+	def send_SetBrake(self, brake):
+		msg = struct.pack("<B?", 52, brake)
+		self.sock.sendto(msg, (self.ip, self.port))
+
+	def send_PosTo(self, pos, timeout):
+		msg = struct.pack("<Bff", 84, pos, timeout)
 		self.sock.sendto(msg, (self.ip, self.port))
 
 	def send_Traj(self, a, b, c, d, e, f, dur):
@@ -54,14 +66,31 @@ class Module(object):
 if __name__ == '__main__':
 	mod = Module("192.168.10.12")
 	
-	mod.send_Stop
+	mod.send_Stop()
+	time.sleep(1)
 
-	print("Check the battery condition")
-	mod.send_BatteryRequest()
+	mod.send_SetBrake(True)
 
 	print("Checking encoder")
-	mod.send_PosRequest()
+	mod.send_PosRequest(True)
 
-	print("Turning")
-	mod.send_Traj(0,0,0,0,1,0,5)
-	time.sleep(6)
+	print("Zeroing")
+	mod.send_PosTo(1,5)
+
+	positions = []
+	T = []
+	start = time.time()
+	duration = 5 # seconds
+	hz = 30.0
+	while time.time()-start < duration:
+		positions.append(mod.send_PosRequest())
+		T.append(time.time()-start)
+		time.sleep(1/hz)
+
+	print("Stopping")
+	mod.send_Stop()
+	plt.figure()
+	plt.plot(T, positions)
+	plt.show()
+
+	

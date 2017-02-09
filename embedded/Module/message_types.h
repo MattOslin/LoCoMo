@@ -30,6 +30,14 @@ typedef struct __attribute__ ((__packed__)) {
   float pos;
 }MsgPos;
 
+
+const uint8_t MsgPosToType = 84;
+typedef struct __attribute__ ((__packed__)) {
+  uint8_t type;
+  float pos;
+  float timeout;
+}MsgPosTo;
+
 //const uint8_t MsgVelRequestType = 90;
 //typedef struct __attribute__ ((__packed__)) {
 //  uint8_t type;
@@ -45,7 +53,14 @@ const uint8_t MsgPowToType = 112;
 typedef struct __attribute__ ((__packed__)) {
   uint8_t type;
   int v;
+  float timeout;
 }MsgPowTo;
+
+const uint8_t MsgSetBrakeType = 52;
+typedef struct __attribute__ ((__packed__)) {
+  uint8_t type;
+  bool brake;
+}MsgSetBrake;
 
 const uint8_t MsgTrajType = 107;
 typedef struct __attribute__ ((__packed__)) {

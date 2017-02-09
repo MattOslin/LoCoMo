@@ -26,12 +26,12 @@ while True:
 			mod.send_Stop()
 		elif event.type == KEYDOWN:
 			if event.key == K_LEFT:
-				mod.send_PowTo(1000)
+				mod.send_PowTo(1000,5)
 			elif event.key == K_RIGHT:
-				mod.send_PowTo(-1000)
+				mod.send_PowTo(-1000,5)
 			elif event.key == K_SPACE:
-				print("Checking velocity")
-				mod.send_VelRequest()
+				print("Checking position")
+				mod.send_PosRequest(True)
 
 	pygame.display.update()
 
