@@ -15,7 +15,7 @@
 
 #define KP 500
 #define KD 0
-#define BETA 0.9
+#define BETA 0.99
 
 char ssid[] = WIFI_SSID; // your network SSID (name)
 char pass[] = WIFI_PASS; // your network password
@@ -28,6 +28,8 @@ const int timeStep = 20; //milliseconds period of control loop
 
 WiFiUDP Udp;
 const int LED = LED_BUILTIN;
+const int RLED = 16;
+const int GLED = 14;
 const int ANALOG = A0;
 const int STBY = 4;
 const int IN1 = 13;
@@ -35,7 +37,7 @@ const int IN2 = 12;
 const int PWM = 5;
 
 // All global mutable state here:
-char packetBuffer[255]; // buffer to hold incoming packet
+bool serMode = false;
 enum StateType state = WAIT;
 unsigned long t = millis();
 int velo = 0;
@@ -52,9 +54,11 @@ bool brake = true;
 void setup() {
   initHardware();
   delay(100);
-  Serial.println("Start Serial.");
+  Serial.println("\nStart Serial.");
   initWiFi();
   Serial.println("Ready to roll");
+  digitalWrite(RLED, LOW);
+  digitalWrite(GLED, HIGH);
 }
 
 void loop() {
@@ -62,12 +66,20 @@ void loop() {
   int packetSize = Udp.parsePacket();
   handlePacket(packetSize);
 
+  if(Serial.available()>0){
+    handleSerial();
+  }
+
+  bool toggle = false;
+
   if(millis()>=t+timeStep){
     t = millis();
     float pos = estimatePosition();
     float vel = estimateVelocity(pos);
     int v = controller(pos, vel);
     updateMotors(v);
+    digitalWrite(GLED, toggle? HIGH: LOW);
+    toggle = !toggle;
   }
 }
 
@@ -174,8 +186,94 @@ void updateMotors(int v){
   }
 }
 
+void handleSerial(){
+  digitalWrite(RLED, HIGH);
+  static char command[16];
+  static char data[16];
+  static char datatime[16];
+  static int count = 0;
+  static int i = 0;
+  switch(count){
+    case 0:
+      while(Serial.available()>0){
+        command[i]=Serial.read();
+        if(command[i]==' '||i==15){
+          command[i]='\0';
+          i=0;
+          count++;
+          break;
+        }
+        i++;
+      }
+      break;
+    case 1:
+      while(Serial.available()>0){
+        data[i]=Serial.read();
+        if(data[i]==' '||i==15){
+          data[i]='\0';
+          i=0;
+          count++;
+          break;
+        }
+        i++;
+      }
+      break;
+    case 2:
+      while(Serial.available()>0){
+        datatime[i]=Serial.read();
+        if(datatime[i]==' '||i==15){
+          datatime[i]='\0';
+          i=0;
+          count++;
+          break;
+        }
+        i++;
+      }
+      break;
+  }
+  if(strcmp(command, "brake")==0&&count==2){
+    count = 0;
+    Serial.print("Brake set: ");
+    brake = atoi(data);
+    Serial.println(brake);
+  }else if(strcmp(command, "pow")==0&&count==3){
+    count = 0;
+    Serial.print("Speed set: ");
+    velo = atof(data);
+    Serial.println(velo);
+    Serial.print("Timeout: ");
+    timeout = atof(datatime);
+    Serial.println(timeout);
+    start = millis();
+    state = MOVE;
+  }else if(strcmp(command, "pos")==0&&count==3){
+    count = 0;
+    Serial.print("Position set: ");
+    f = atof(data);
+    Serial.println(f);
+    Serial.print("Timeout: ");
+    timeout = atof(datatime);
+    Serial.println(timeout);
+    start = millis();
+    state = TRAJ;
+    a = 0;
+    b = 0;
+    c = 0;
+    d = 0;
+    e = 0;
+  }else if(strcmp(command, "stop")==0){
+    count = 0;
+    Serial.println("Stopping");
+    state = WAIT;
+  }else{
+
+  } 
+  digitalWrite(RLED, LOW);
+}
+
 void handlePacket(int packetSize)
 {
+  char packetBuffer[255]; // buffer to hold incoming packet
   if (packetSize)
   {
     // read the packet into packetBuffer
@@ -333,28 +431,42 @@ void initHardware()
 {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
+  pinMode(RLED, OUTPUT);
+  pinMode(GLED, OUTPUT);
   pinMode(STBY, OUTPUT);
   pinMode(PWM, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   digitalWrite(STBY, LOW);
   digitalWrite(LED, HIGH);
+  digitalWrite(RLED, HIGH);
 }
 
 void initWiFi()
 {
   Serial.print("Connecting to ");
   Serial.println(ssid);
-//  WiFi.config(ip);
+  Serial.println("Enter 's' to abort and use serial mode");
+  //  WiFi.config(ip);
 //  Serial.println("Wifi configed");
   // attempt to connect to Wifi network:
 //  int status = WL_IDLE_STATUS;
    
    WiFi.begin(ssid, pass);
-  
+
+  bool toggle = false;
   while (WiFi.status() != WL_CONNECTED) {
+    if(Serial.available()>0){
+      if(Serial.read()=='s'){
+        serMode = true;
+        Serial.println("Serial only mode activated");
+        return;
+      }
+    }
     delay(500);
     Serial.print(".");
+    digitalWrite(RLED, toggle? HIGH: LOW);
+    toggle = !toggle;
   }
 
   Serial.println("");

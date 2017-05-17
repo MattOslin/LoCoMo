@@ -65,9 +65,9 @@ class Module(object):
 
 if __name__ == '__main__':
 	mod = Module("192.168.10.12")
-	
+	#mod = Module("192.168.10.18")
+
 	mod.send_Stop()
-	time.sleep(1)
 
 	mod.send_SetBrake(True)
 
@@ -75,7 +75,9 @@ if __name__ == '__main__':
 	mod.send_PosRequest(True)
 
 	print("Zeroing")
-	mod.send_PosTo(1,5)
+	#mod.send_PosTo(0,5)
+	#mod.send_Traj(0,0,0,0,0,0,5)
+	mod.send_PowTo(700,5)
 
 	positions = []
 	T = []
