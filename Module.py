@@ -1,7 +1,7 @@
 import socket
 import time
 import struct
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 class Module(object):
 	def __init__(self, ip):
@@ -64,7 +64,7 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 
 if __name__ == '__main__':
-	mod = Module("192.168.10.12")
+	mod = Module("192.168.10.13")
 	#mod = Module("192.168.10.18")
 
 	mod.send_Stop()
@@ -75,24 +75,26 @@ if __name__ == '__main__':
 	mod.send_PosRequest(True)
 
 	print("Zeroing")
-	#mod.send_PosTo(0,5)
+	mod.send_PosTo(0,5)
 	#mod.send_Traj(0,0,0,0,0,0,5)
-	mod.send_PowTo(700,5)
+	#mod.send_PowTo(200,5)
 
-	positions = []
-	T = []
-	start = time.time()
-	duration = 5 # seconds
-	hz = 30.0
-	while time.time()-start < duration:
-		positions.append(mod.send_PosRequest())
-		T.append(time.time()-start)
-		time.sleep(1/hz)
+	time.sleep(5)
+
+#	positions = []
+#	T = []
+#	start = time.time()
+#	duration = 5 # seconds
+#	hz = 30.0
+#	while time.time()-start < duration:
+#		positions.append(mod.send_PosRequest())
+#		T.append(time.time()-start)
+#		time.sleep(1/hz)
 
 	print("Stopping")
 	mod.send_Stop()
-	plt.figure()
-	plt.plot(T, positions)
-	plt.show()
+#	plt.figure()
+#	plt.plot(T, positions)
+#	plt.show()
 
 	

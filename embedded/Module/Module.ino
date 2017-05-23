@@ -1,5 +1,5 @@
 /*
- * LoCoMo control over UDP
+ * LoCoMo control over UDP and serial
  * 
  * Matt Oslin
  */
@@ -10,8 +10,11 @@
 #include "message_types.h"
 #include "WiFiCred.h"
 
-#define MAX_SENSOR_VALUE 675
-#define MIN_SENSOR_VALUE 110
+#define MAX_SENSOR_VALUE 845
+#define MIN_SENSOR_VALUE 60
+
+#define MOVE_THRESHOLD 200
+#define MOVE_DEADBAND 20
 
 #define KP 500
 #define KD 0
@@ -31,10 +34,10 @@ const int LED = LED_BUILTIN;
 const int RLED = 16;
 const int GLED = 14;
 const int ANALOG = A0;
-const int STBY = 4;
+const int STBY = 5;
 const int IN1 = 13;
 const int IN2 = 12;
-const int PWM = 5;
+const int PWM = 4;
 
 // All global mutable state here:
 bool serMode = false;
@@ -50,6 +53,8 @@ float d;
 float e;
 float f;
 bool brake = true;
+int usbcount = 0;
+bool logging = false;
 
 void setup() {
   initHardware();
@@ -64,13 +69,11 @@ void setup() {
 void loop() {
   // if there's data available, read the packet and handle the message immediately
   int packetSize = Udp.parsePacket();
-  handlePacket(packetSize);
+  if(!serMode)handlePacket(packetSize);
 
   if(Serial.available()>0){
     handleSerial();
   }
-
-  bool toggle = false;
 
   if(millis()>=t+timeStep){
     t = millis();
@@ -78,8 +81,13 @@ void loop() {
     float vel = estimateVelocity(pos);
     int v = controller(pos, vel);
     updateMotors(v);
-    digitalWrite(GLED, toggle? HIGH: LOW);
-    toggle = !toggle;
+    if(usbcount==5){
+      usbcount=0;
+      if(logging){
+        Serial.println(estimatePosition());
+      }
+    }
+    usbcount++;
   }
 }
 
@@ -103,7 +111,7 @@ int controller(float pos, float vel){
     case MOVE:
     {
       float timeElapsed = (float)(millis()-start)/1000.0f;
-      if(!brake && timeElapsed > timeout){
+      if(brake && timeElapsed > timeout){
         v=0;
       }else{
         v = velo;
@@ -115,13 +123,18 @@ int controller(float pos, float vel){
 }
 
 int pid(float pos, float vel, float goalPos, float goalVel){
+  int response = 0;
   float posErr(goalPos - pos);
   float velErr(goalVel - vel);
   float posErrTemp = 2*PI - abs(posErr);
   if (abs(posErr)>=PI) {
     posErr = posErrTemp * ((posErr<0)-(posErr>0));
   }
-  return KP*posErr + KD*velErr;
+  response = KP*posErr + KD*velErr;
+  if(abs(response)<MOVE_DEADBAND)response=0;
+  if(response>0)response+=MOVE_THRESHOLD;
+  else if(response<0)response-=MOVE_THRESHOLD;
+  return response;
 }
 
 float getTrajPos(float t){
@@ -175,11 +188,11 @@ void updateMotors(int v){
   }else{
     v = constrain(v,-1023,1023);
     if(v<0){
-      digitalWrite(IN1, HIGH);
-      digitalWrite(IN2, LOW);
-    }else{
-      digitalWrite(IN2, HIGH);
       digitalWrite(IN1, LOW);
+      digitalWrite(IN2, HIGH);
+    }else{
+      digitalWrite(IN2, LOW);
+      digitalWrite(IN1, HIGH);
     }
     analogWrite(PWM, abs(v));
     digitalWrite(STBY, HIGH);
@@ -188,86 +201,72 @@ void updateMotors(int v){
 
 void handleSerial(){
   digitalWrite(RLED, HIGH);
-  static char command[16];
-  static char data[16];
-  static char datatime[16];
+  static char command[60];
   static int count = 0;
   static int i = 0;
-  switch(count){
-    case 0:
-      while(Serial.available()>0){
-        command[i]=Serial.read();
-        if(command[i]==' '||i==15){
-          command[i]='\0';
-          i=0;
-          count++;
-          break;
-        }
-        i++;
-      }
+  char c = 0;
+  char flag = 0;
+  while(Serial.available()>0){
+    c=Serial.read();
+    if(c=='\n'){
+      command[count*20+i]='\0';
+      flag = 1;
+      i = 0;
+      count = 0;
       break;
-    case 1:
-      while(Serial.available()>0){
-        data[i]=Serial.read();
-        if(data[i]==' '||i==15){
-          data[i]='\0';
-          i=0;
-          count++;
-          break;
-        }
-        i++;
-      }
-      break;
-    case 2:
-      while(Serial.available()>0){
-        datatime[i]=Serial.read();
-        if(datatime[i]==' '||i==15){
-          datatime[i]='\0';
-          i=0;
-          count++;
-          break;
-        }
-        i++;
-      }
-      break;
+    }else if(c==' '){
+      command[count*20+i]='\0';
+      count++;
+      i=0;
+    }else{
+      command[count*20+i]=c;
+      i++;
+    }
   }
-  if(strcmp(command, "brake")==0&&count==2){
-    count = 0;
-    Serial.print("Brake set: ");
-    brake = atoi(data);
-    Serial.println(brake);
-  }else if(strcmp(command, "pow")==0&&count==3){
-    count = 0;
-    Serial.print("Speed set: ");
-    velo = atof(data);
-    Serial.println(velo);
-    Serial.print("Timeout: ");
-    timeout = atof(datatime);
-    Serial.println(timeout);
-    start = millis();
-    state = MOVE;
-  }else if(strcmp(command, "pos")==0&&count==3){
-    count = 0;
-    Serial.print("Position set: ");
-    f = atof(data);
-    Serial.println(f);
-    Serial.print("Timeout: ");
-    timeout = atof(datatime);
-    Serial.println(timeout);
-    start = millis();
-    state = TRAJ;
-    a = 0;
-    b = 0;
-    c = 0;
-    d = 0;
-    e = 0;
-  }else if(strcmp(command, "stop")==0){
-    count = 0;
-    Serial.println("Stopping");
-    state = WAIT;
-  }else{
-
-  } 
+  if(flag){
+    if(strcmp(command, "brake")==0){
+      count = 0;
+      Serial.print("Brake set: ");
+      brake = atoi(command+20);
+      Serial.println(brake);
+    }else if(strcmp(command, "pow")==0){
+      count = 0;
+      Serial.print("Speed set: ");
+      velo = atof(command+20);
+      Serial.println(velo);
+      Serial.print("Timeout: ");
+      timeout = atof(command+40);
+      Serial.println(timeout);
+      start = millis();
+      state = MOVE;
+    }else if(strcmp(command, "pos")==0){
+      count = 0;
+      Serial.print("Position set: ");
+      f = atof(command+20);
+      Serial.println(f);
+      Serial.print("Timeout: ");
+      timeout = atof(command+40);
+      Serial.println(timeout);
+      start = millis();
+      state = TRAJ;
+      a = 0;
+      b = 0;
+      c = 0;
+      d = 0;
+      e = 0;
+    }else if(strcmp(command, "stop")==0){
+      count = 0;
+      Serial.println("Stopping");
+      state = WAIT;
+    }else if(strcmp(command, "log")==0){
+      count = 0;
+      Serial.print("Logging: ");
+      logging = atoi(command+20);
+      Serial.println(logging);
+    }else{
+      Serial.println("Unknown command");
+    }
+  }
   digitalWrite(RLED, LOW);
 }
 
@@ -306,6 +305,7 @@ void handlePacket(int packetSize)
 
         Serial.print("Sending reply: ");
         float pos = estimatePosition();
+        //pos = analogRead(ANALOG);
         Serial.println(pos);
         MsgPos reply = {MsgPosType, pos};
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());

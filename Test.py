@@ -10,7 +10,9 @@ pygame.init()
 DISPLAYSURF = pygame.display.set_mode((300,300))
 pygame.display.set_caption('LoCoMo Debugger')
 
-mod = Module.Module("192.168.10.12")
+mod = Module.Module("192.168.10.13")
+
+mod.send_SetBrake(False);
 
 while True:
 
