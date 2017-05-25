@@ -13,8 +13,10 @@
 #define MAX_SENSOR_VALUE 845
 #define MIN_SENSOR_VALUE 60
 
-#define MOVE_THRESHOLD 200
-#define MOVE_DEADBAND 20
+#define MOVE_THRESHOLD 150 //minimum PWM to move motor, voltage dependent
+#define MOVE_DEADBAND 20 //below this PWM drops to 0
+
+#define PWM_CAP 800 //based on input voltage, motor limited to 6V
 
 #define KP 500
 #define KD 0
@@ -40,7 +42,7 @@ const int IN2 = 12;
 const int PWM = 4;
 
 // All global mutable state here:
-bool serMode = false;
+//bool serMode = false;
 enum StateType state = WAIT;
 unsigned long t = millis();
 int velo = 0;
@@ -53,15 +55,15 @@ float d;
 float e;
 float f;
 bool brake = true;
-int usbcount = 0;
-bool logging = false;
+//int usbcount = 0;
+//bool logging = false;
 
 void setup() {
   initHardware();
   delay(100);
-  Serial.println("\nStart Serial.");
+  //Serial.println("\nStart Serial.");
   initWiFi();
-  Serial.println("Ready to roll");
+  //Serial.println("Ready to roll");
   digitalWrite(RLED, LOW);
   digitalWrite(GLED, HIGH);
 }
@@ -69,11 +71,11 @@ void setup() {
 void loop() {
   // if there's data available, read the packet and handle the message immediately
   int packetSize = Udp.parsePacket();
-  if(!serMode)handlePacket(packetSize);
+  handlePacket(packetSize);
 
-  if(Serial.available()>0){
-    handleSerial();
-  }
+//  if(Serial.available()>0){
+//    handleSerial();
+//  }
 
   if(millis()>=t+timeStep){
     t = millis();
@@ -81,13 +83,13 @@ void loop() {
     float vel = estimateVelocity(pos);
     int v = controller(pos, vel);
     updateMotors(v);
-    if(usbcount==5){
-      usbcount=0;
-      if(logging){
-        Serial.println(estimatePosition());
-      }
-    }
-    usbcount++;
+//    if(usbcount==5){
+//      usbcount=0;
+//      if(logging){
+//        Serial.println(estimatePosition());
+//      }
+//    }
+//    usbcount++;
   }
 }
 
@@ -186,7 +188,7 @@ void updateMotors(int v){
   if(!v){
     digitalWrite(STBY, LOW);
   }else{
-    v = constrain(v,-1023,1023);
+    v = constrain(v,-PWM_CAP,PWM_CAP);
     if(v<0){
       digitalWrite(IN1, LOW);
       digitalWrite(IN2, HIGH);
@@ -199,76 +201,76 @@ void updateMotors(int v){
   }
 }
 
-void handleSerial(){
-  digitalWrite(RLED, HIGH);
-  static char command[60];
-  static int count = 0;
-  static int i = 0;
-  char c = 0;
-  char flag = 0;
-  while(Serial.available()>0){
-    c=Serial.read();
-    if(c=='\n'){
-      command[count*20+i]='\0';
-      flag = 1;
-      i = 0;
-      count = 0;
-      break;
-    }else if(c==' '){
-      command[count*20+i]='\0';
-      count++;
-      i=0;
-    }else{
-      command[count*20+i]=c;
-      i++;
-    }
-  }
-  if(flag){
-    if(strcmp(command, "brake")==0){
-      count = 0;
-      Serial.print("Brake set: ");
-      brake = atoi(command+20);
-      Serial.println(brake);
-    }else if(strcmp(command, "pow")==0){
-      count = 0;
-      Serial.print("Speed set: ");
-      velo = atof(command+20);
-      Serial.println(velo);
-      Serial.print("Timeout: ");
-      timeout = atof(command+40);
-      Serial.println(timeout);
-      start = millis();
-      state = MOVE;
-    }else if(strcmp(command, "pos")==0){
-      count = 0;
-      Serial.print("Position set: ");
-      f = atof(command+20);
-      Serial.println(f);
-      Serial.print("Timeout: ");
-      timeout = atof(command+40);
-      Serial.println(timeout);
-      start = millis();
-      state = TRAJ;
-      a = 0;
-      b = 0;
-      c = 0;
-      d = 0;
-      e = 0;
-    }else if(strcmp(command, "stop")==0){
-      count = 0;
-      Serial.println("Stopping");
-      state = WAIT;
-    }else if(strcmp(command, "log")==0){
-      count = 0;
-      Serial.print("Logging: ");
-      logging = atoi(command+20);
-      Serial.println(logging);
-    }else{
-      Serial.println("Unknown command");
-    }
-  }
-  digitalWrite(RLED, LOW);
-}
+//void handleSerial(){
+//  digitalWrite(RLED, HIGH);
+//  static char command[60];
+//  static int count = 0;
+//  static int i = 0;
+//  char c = 0;
+//  char flag = 0;
+//  while(Serial.available()>0){
+//    c=Serial.read();
+//    if(c=='\n'){
+//      command[count*20+i]='\0';
+//      flag = 1;
+//      i = 0;
+//      count = 0;
+//      break;
+//    }else if(c==' '){
+//      command[count*20+i]='\0';
+//      count++;
+//      i=0;
+//    }else{
+//      command[count*20+i]=c;
+//      i++;
+//    }
+//  }
+//  if(flag){
+//    if(strcmp(command, "brake")==0){
+//      count = 0;
+//      Serial.print("Brake set: ");
+//      brake = atoi(command+20);
+//      Serial.println(brake);
+//    }else if(strcmp(command, "pow")==0){
+//      count = 0;
+//      Serial.print("Speed set: ");
+//      velo = atof(command+20);
+//      Serial.println(velo);
+//      Serial.print("Timeout: ");
+//      timeout = atof(command+40);
+//      Serial.println(timeout);
+//      start = millis();
+//      state = MOVE;
+//    }else if(strcmp(command, "pos")==0){
+//      count = 0;
+//      Serial.print("Position set: ");
+//      f = atof(command+20);
+//      Serial.println(f);
+//      Serial.print("Timeout: ");
+//      timeout = atof(command+40);
+//      Serial.println(timeout);
+//      start = millis();
+//      state = TRAJ;
+//      a = 0;
+//      b = 0;
+//      c = 0;
+//      d = 0;
+//      e = 0;
+//    }else if(strcmp(command, "stop")==0){
+//      count = 0;
+//      Serial.println("Stopping");
+//      state = WAIT;
+//    }else if(strcmp(command, "log")==0){
+//      count = 0;
+//      Serial.print("Logging: ");
+//      logging = atoi(command+20);
+//      Serial.println(logging);
+//    }else{
+//      Serial.println("Unknown command");
+//    }
+//  }
+//  digitalWrite(RLED, LOW);
+//}
 
 void handlePacket(int packetSize)
 {
@@ -281,32 +283,32 @@ void handlePacket(int packetSize)
     // first byte specifies the type of message
     uint8_t msg_id = packetBuffer[0];
     switch (msg_id) {
-      case MsgBatteryRequestType:
-      {
-        MsgBatteryRequest *msg = (MsgBatteryRequest*)(packetBuffer);
-        Serial.print("Received Battery Check command: ");
-        Serial.println(msg->type);
-
-        Serial.print("Sending reply: ");
-        float est_voltage = 0;
-        Serial.println(est_voltage);
-        MsgBattery reply = {MsgBatteryType, est_voltage};
-        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write((const char*) (&reply), sizeof(reply));
-        Udp.endPacket();
-        break;
-      }
+//      case MsgBatteryRequestType:
+//      {
+//        MsgBatteryRequest *msg = (MsgBatteryRequest*)(packetBuffer);
+//        Serial.print("Received Battery Check command: ");
+//        Serial.println(msg->type);
+//
+//        Serial.print("Sending reply: ");
+//        float est_voltage = 0;
+//        Serial.println(est_voltage);
+//        MsgBattery reply = {MsgBatteryType, est_voltage};
+//        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+//        Udp.write((const char*) (&reply), sizeof(reply));
+//        Udp.endPacket();
+//        break;
+//      }
 
       case MsgPosRequestType:
       {
         MsgPosRequest *msg = (MsgPosRequest*)(packetBuffer);
-        Serial.print("Received position check command: ");
-        Serial.println(msg->type);
-
-        Serial.print("Sending reply: ");
+//        Serial.print("Received position check command: ");
+//        Serial.println(msg->type);
+//
+//        Serial.print("Sending reply: ");
         float pos = estimatePosition();
         //pos = analogRead(ANALOG);
-        Serial.println(pos);
+//        Serial.println(pos);
         MsgPos reply = {MsgPosType, pos};
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write((const char*) (&reply), sizeof(reply));
@@ -333,24 +335,24 @@ void handlePacket(int packetSize)
       case MsgSetBrakeType:
       {
         MsgSetBrake *msg = (MsgSetBrake*)(packetBuffer);
-        Serial.print("Received set brake command: ");
-        Serial.println(msg->type);
-        Serial.print("Brake: ");
+//        Serial.print("Received set brake command: ");
+//        Serial.println(msg->type);
+//        Serial.print("Brake: ");
         brake = msg->brake;
-        Serial.println(brake);
+//        Serial.println(brake);
         break;
       }
       
       case MsgPowToType:
       {
         MsgPowTo *msg = (MsgPowTo*)(packetBuffer);
-        Serial.print("Received direct power command: ");
-        Serial.println(msg->type);
-        Serial.print("Speed: ");
-        Serial.println(msg->v);
-        Serial.print("Timeout: ");
+//        Serial.print("Received direct power command: ");
+//        Serial.println(msg->type);
+//        Serial.print("Speed: ");
+//        Serial.println(msg->v);
+//        Serial.print("Timeout: ");
         timeout = msg->timeout;
-        Serial.println(timeout);
+//        Serial.println(timeout);
         start = millis();
         velo = msg->v;
         state = MOVE;
@@ -360,29 +362,29 @@ void handlePacket(int packetSize)
       case MsgTrajType:
       {
         MsgTraj *msg = (MsgTraj*)(packetBuffer);
-        Serial.print("Received trajectory: ");
-        Serial.println(msg->type);
+//        Serial.print("Received trajectory: ");
+//        Serial.println(msg->type);
         a = msg->a;
         b = msg->b;
         c = msg->c;
         d = msg->d;
         e = msg->e;
         f = msg->f;
-        Serial.print("Function: x=");
-        Serial.print(a);
-        Serial.print("x^5+");
-        Serial.print(b);
-        Serial.print("x^4+");
-        Serial.print(c);
-        Serial.print("x^3+");
-        Serial.print(d);
-        Serial.print("x^2+");
-        Serial.print(e);
-        Serial.print("x+");
-        Serial.println(f);
-        Serial.print("Duration: ");
+//        Serial.print("Function: x=");
+//        Serial.print(a);
+//        Serial.print("x^5+");
+//        Serial.print(b);
+//        Serial.print("x^4+");
+//        Serial.print(c);
+//        Serial.print("x^3+");
+//        Serial.print(d);
+//        Serial.print("x^2+");
+//        Serial.print(e);
+//        Serial.print("x+");
+//        Serial.println(f);
+//        Serial.print("Duration: ");
         timeout = msg->dur;
-        Serial.println(timeout);
+//        Serial.println(timeout);
         start = millis();
         state = TRAJ;
         break;
@@ -391,19 +393,19 @@ void handlePacket(int packetSize)
       case MsgPosToType:
       {
         MsgPosTo *msg = (MsgPosTo*)(packetBuffer);
-        Serial.print("Received position: ");
-        Serial.println(msg->type);
+//        Serial.print("Received position: ");
+//        Serial.println(msg->type);
         a = 0;
         b = 0;
         c = 0;
         d = 0;
         e = 0;
         f = msg->pos;
-        Serial.print("Position: ");
-        Serial.println(f);
-        Serial.print("Timeout: ");
+//        Serial.print("Position: ");
+//        Serial.println(f);
+//        Serial.print("Timeout: ");
         timeout = msg->timeout;
-        Serial.println(timeout);
+//        Serial.println(timeout);
         start = millis();
         state = TRAJ;
         break;
@@ -412,16 +414,16 @@ void handlePacket(int packetSize)
       case MsgStopType:
       {
         MsgStop *msg = (MsgStop*)(packetBuffer);
-        Serial.print("Received Stop command: ");
-        Serial.println(msg->type);
+//        Serial.print("Received Stop command: ");
+//        Serial.println(msg->type);
         state = WAIT;
         break;
       }
 
       default:
       {
-        Serial.print("Received unknown command: ");
-        Serial.println(msg_id);
+//        Serial.print("Received unknown command: ");
+//        Serial.println(msg_id);
       }
     }
   }
@@ -444,25 +446,21 @@ void initHardware()
 
 void initWiFi()
 {
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  Serial.println("Enter 's' to abort and use serial mode");
-  //  WiFi.config(ip);
-//  Serial.println("Wifi configed");
-  // attempt to connect to Wifi network:
-//  int status = WL_IDLE_STATUS;
+//  Serial.print("Connecting to ");
+//  Serial.println(ssid);
+//  Serial.println("Enter 's' to abort and use serial mode");
    
    WiFi.begin(ssid, pass);
 
   bool toggle = false;
   while (WiFi.status() != WL_CONNECTED) {
-    if(Serial.available()>0){
-      if(Serial.read()=='s'){
-        serMode = true;
-        Serial.println("Serial only mode activated");
-        return;
-      }
-    }
+//    if(Serial.available()>0){
+//      if(Serial.read()=='s'){
+//        serMode = true;
+//        Serial.println("Serial only mode activated");
+//        return;
+//      }
+//    }
     delay(500);
     Serial.print(".");
     digitalWrite(RLED, toggle? HIGH: LOW);

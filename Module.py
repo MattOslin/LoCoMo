@@ -1,7 +1,7 @@
 import socket
 import time
 import struct
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 class Module(object):
 	def __init__(self, ip):
@@ -64,7 +64,7 @@ class Module(object):
 		self.sock.sendto(msg, (self.ip, self.port))
 
 if __name__ == '__main__':
-	mod = Module("192.168.10.13")
+	mod = Module("192.168.10.12")
 	#mod = Module("192.168.10.18")
 
 	mod.send_Stop()
@@ -75,17 +75,31 @@ if __name__ == '__main__':
 	mod.send_PosRequest(True)
 
 	print("Zeroing")
-	mod.send_PosTo(0,5)
-	#mod.send_Traj(0,0,0,0,0,0,5)
-	#mod.send_PowTo(200,5)
+#	mod.send_PosTo(0,5)
 
+	#mod.send_Traj(0,0,0,0,0,0,5)
+	mod.send_PowTo(800,5)
 	time.sleep(5)
+	
+#	print("Oscillating")
+#	mod.send_Traj(0.0125,-0.0982,0.0584,0.6936,0.0300,-1.5068,3.1416)
+#	time.sleep(3.1416)
+#	mod.send_Traj(-0.0125,0.0982,-0.0584,-0.6936,-0.0300,1.5068,3.1416)
+#	time.sleep(3.1416)
+#	mod.send_Traj(0.0125,-0.0982,0.0584,0.6936,0.0300,-1.5068,3.1416)
+#	time.sleep(3.1416)
+#	mod.send_Traj(-0.0125,0.0982,-0.0584,-0.6936,-0.0300,1.5068,3.1416)
+#	time.sleep(3.1416)
+#	mod.send_Traj(0.0125,-0.0982,0.0584,0.6936,0.0300,-1.5068,3.1416)
+#	time.sleep(3.1416)
+#	mod.send_Traj(-0.0125,0.0982,-0.0584,-0.6936,-0.0300,1.5068,3.1416)
+#	time.sleep(3.1416)
 
 #	positions = []
 #	T = []
 #	start = time.time()
 #	duration = 5 # seconds
-#	hz = 30.0
+#	hz = 20.0
 #	while time.time()-start < duration:
 #		positions.append(mod.send_PosRequest())
 #		T.append(time.time()-start)

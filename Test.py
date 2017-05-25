@@ -10,7 +10,7 @@ pygame.init()
 DISPLAYSURF = pygame.display.set_mode((300,300))
 pygame.display.set_caption('LoCoMo Debugger')
 
-mod = Module.Module("192.168.10.13")
+mod = Module.Module("192.168.10.12")
 
 mod.send_SetBrake(False);
 
@@ -28,9 +28,9 @@ while True:
 			mod.send_Stop()
 		elif event.type == KEYDOWN:
 			if event.key == K_LEFT:
-				mod.send_PowTo(1000,5)
+				mod.send_PowTo(800,5)
 			elif event.key == K_RIGHT:
-				mod.send_PowTo(-1000,5)
+				mod.send_PowTo(-800,5)
 			elif event.key == K_SPACE:
 				print("Checking position")
 				mod.send_PosRequest(True)
